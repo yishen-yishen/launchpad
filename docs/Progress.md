@@ -655,3 +655,19 @@ sh scripts/build-dev.sh 退出 0，固定目录构建与本地 ad-hoc 签名成�
 已实现：拖出文件夹的停留延时由500ms改为300ms。Store增加仅用于交互展示的全局draggedItem，覆盖根页面、文件夹及跨页面重新加载的单元格；拖动中将原位置的图标和文字整体隐藏，保留布局占位，避免额外挤动。移出文件夹后主页面的对应单元格同样隐藏，拖动结束/取消才恢复，拖动图像在隐藏来源之前完成快照以保证跟随图像正常。文件夹缩略图也暂不绘制正在拖动的应用，避免重复。拖动状态不参与持久化。
 
 实际验证：sh scripts/check-folder-drag.sh退出0；验证300ms之前不移出、移回取消、满时自动移出，来源/主页面/重新加载单元格alpha=0、结束后alpha=1、取消根页面拖动恢复，以及继续合并文件夹和两项文件夹解散。sh scripts/build-dev.sh退出0，Debug编译及签名严格验证通过。已正常退出并重启开发版本；未跑完整测试、未打包DMG，人工鼠标拖拽与释放时视觉手感仍待确认。
+
+## 完整回归与beta重打包（2026-11-18）
+
+本次交互改动首先提交为本地Git c08451d（Fix continuous folder drag-out and hide dragged source icons），未推送远程。完整回归发现NativeChecks仍引用已删除的store.editing，已同步为“按住不激活、松手正常点击”断言，并更新README交互说明。
+
+实际验证全部通过：
+- swift test：22项测试全部通过。
+- swift run CoreChecks：6个核心场景，包含1000次确定性布局操作，通过。
+- sh scripts/check-hot-corner.sh：真实计时器、精确屏幕边界、单选迁移、重入锁存、拖动抑制及关闭清理通过。
+- sh scripts/check-folder-drag.sh：300ms移出、计时取消、来源/主页面/重载图标隐藏、松手与取消恢复、持续合并及文件夹解散通过。
+- sh scripts/check-wallpaper-no-permission.sh：全新测试App录屏授权false，desktop-window-coregraphics取得真实壁纸像素，hasContent=true、meanAlpha=1，通过。
+- LAUNCHDOCK_CHECK_LIFECYCLE=1 sh scripts/check-fullscreen.sh：ALL NATIVE CHECKS PASSED，包含完整原生交互/生命周期、动画、菜单、搜索、分页、文件夹、真实辅助窗口层级保持，以及3次外部App全屏Space显示/关闭和键盘输入。
+- sh scripts/package-release.sh：退出0，Release arm64/x86_64双架构、本地ad-hoc签名严格校验、仅系统库依赖及DMG镜像CRC校验通过。
+- 最终DMG只读挂载，包内App版本0.0.1-beta、双架构、签名/依赖、二进制哈希、Applications快捷方式及安装说明均通过；ZIP实际解压后校验也通过。DMG/ZIP的SHA256SUMS均OK。
+
+交付：dist/LaunchDock-0.0.1-beta-universal.dmg（c251f1fc784d02c604a8f01724b78cbc79b15bc0ba9e6595b2cc1b0b46c2611d）。显示版本保持0.0.1-beta，数字版本0.0.1，build保持2026111301。未进行Developer ID签名或公证；Intel为交叉构建验证，未在Intel真机运行；真实手动拖拽手感和多显示器仍需人工验收。运行日志位于/tmp/launchdock-full-*.log，镜像内App验证报告位于build/ReleaseValidation/20261118/Mounted-Verification.json。

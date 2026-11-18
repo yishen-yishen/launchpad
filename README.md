@@ -18,9 +18,9 @@ swift run CoreChecks
 
 数据：`~/Library/Application Support/app.launchdock.LaunchDock/` 内保存 `catalog.json`、`layout.json`、3 份布局备份和恢复保留文件。偏好当前使用 bundle 域 UserDefaults。调试重置前退出应用，将整个数据目录改名备份，随后重新打开。设置中“重置为字母顺序”会清除文件夹，执行前确认并保留备份。不要直接删除真实布局。
 
-Dock 打开、菜单栏或 Option+Space 唤起；首次打开扫描本机标准目录。图标右键可在访达中显示；空白处右键可设置、重启或退出。长按拖动可排序、合并文件夹与拖出成员。设置可重新扫描、恢复隐藏、导入导出和配置登录启动。当前限制见 [Known-Limitations](docs/Known-Limitations.md)，发行步骤见 [Release](docs/Release.md)。
+Dock 打开、菜单栏或 Option+Space 唤起；首次打开扫描本机标准目录。图标右键可在访达中显示；空白处右键可设置、重启或退出。直接拖动可排序、合并文件夹与拖出成员；拖出文件夹停留300ms自动回到主页面，松手前仅显示跟随鼠标的图标。设置可重新扫描、恢复隐藏、导入导出和配置登录启动。当前限制见 [Known-Limitations](docs/Known-Limitations.md)，发行步骤见 [Release](docs/Release.md)。
 
-原生回归检查（先运行上述 Debug 构建）：`sh scripts/check-native.sh`。此检查打开独立测试窗口，验证全宽居中、长按整理与外层滚轮路由，不写用户布局。不要把合成事件检查替代真实拖动和多屏验收。
+原生回归检查（先运行上述 Debug 构建）：`sh scripts/check-native.sh`。此检查打开独立测试窗口，验证全宽居中、直接拖拽整理与外层滚轮路由，不写用户布局。不要把合成事件检查替代真实拖动和多屏验收。
 
 触发角：在“设置 → 通用”下拉选择一个角，默认关闭，不要求 Option。此功能为应用内配置，不向系统触发角菜单注入动作；如冲突，请关闭系统对应角。背景由应用独立绘制并模糊：普通图片优先读取壁纸文件，动态/代理资源通过桌面背景窗口专用兼容接口读取；每次打开刷新一次，显示期间固定。不使用 ScreenCaptureKit、不申请录屏权限，也不隐藏或恢复其他应用。读取不可用时回退到有效壁纸文件主图或纯色。macOS 27 的私有兼容分支尚待真机验证，接口变化时退回文件方案。
 

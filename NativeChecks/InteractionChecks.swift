@@ -218,11 +218,17 @@ import LaunchDockCore
         try requireNative(grid.item(at: IndexPath(item: 0, section: 0))?.textField?.textColor == .white)
         let point = grid.convert(NSPoint(x: attributes.frame.midX,y: attributes.frame.midY), to: nil)
         let down = NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1)!
+        let normalOpen = grid.open
+        var releasedClicks = 0
+        grid.open = { _ in releasedClicks += 1 }
         grid.mouseDown(with: down)
-        try await Task.sleep(for: .milliseconds(650))
-        try requireNative(store.editing, "500 ms hold must enter edit mode")
-        grid.cancelPointer()
-        store.editing = false
+        try await pumpNativeEvents(for: 0.65)
+        try requireNative(releasedClicks == 0, "Holding an icon must not activate it before release")
+        let heldUp = NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 0)!
+        NSApp.postEvent(heldUp, atStart: true)
+        try await pumpNativeEvents(for: 0.1)
+        try requireNative(releasedClicks == 1, "Releasing a held icon must perform its normal click")
+        grid.cancelPointer(); grid.open = normalOpen
         let dragDown = NSEvent.mouseEvent(with: .leftMouseDown, location: NSPoint(x: 300,y: 20), modifierFlags: [], timestamp: 3, windowNumber: window.windowNumber, context: nil, eventNumber: 3, clickCount: 1, pressure: 1)!
         let dragMove = NSEvent.mouseEvent(with: .leftMouseDragged, location: NSPoint(x: 180,y: 20), modifierFlags: [], timestamp: 4, windowNumber: window.windowNumber, context: nil, eventNumber: 4, clickCount: 1, pressure: 1)!
         let dragUp = NSEvent.mouseEvent(with: .leftMouseUp, location: NSPoint(x: 180,y: 20), modifierFlags: [], timestamp: 5, windowNumber: window.windowNumber, context: nil, eventNumber: 5, clickCount: 1, pressure: 0)!
@@ -561,7 +567,7 @@ import LaunchDockCore
         print("PASS: menu bar icon hide/restore and Dock activation policy hide/restore")
         print("PASS: popup folder geometry, outside/interior clicks, full-window wheel, nonoverlapping search glyph/text")
         print("PASS: frozen wallpaper background, animated show/hide/reentry, presentation restoration, settings open/close/reopen;")
-        print("PASS: full-width hosting, centered 7×4 grid, 500ms long press, outer-scroll wheel paging, immediate icon drop creates folder and appends to existing folder, no blue borders")
+        print("PASS: full-width hosting, centered 7×4 grid, held-icon release without edit mode, outer-scroll wheel paging, immediate icon drop creates folder and appends to existing folder, no blue borders")
         print("ALL NATIVE CHECKS PASSED")
     }
 }
