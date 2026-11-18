@@ -1,0 +1,15 @@
+# ADR 0003：免录屏权限的壁纸读取
+
+日期：2026-11-12。取代ADR0002中的ScreenCaptureKit和授权流程。
+
+用户明确要求采用BuhoLaunchpad类似方案，减少权限。主应用移除ScreenCaptureKit依赖、CGPreflight/CGRequestScreenCaptureAccess、录屏设置控制器及按钮、录屏用途声明，不使用显示器截图或录屏流。不会退回申请录屏权限。
+
+WallpaperService先加载普通静态壁纸文件。HEIC、多图、DefaultDesktop代理或不可读资源先通过DesktopWallpaperReader读取目标显示器的桌面背景；每次打开取一张，显示期间固定。不再一概拒绝DefaultDesktop文件；兼容接口失败时用ImageIO的CGImageSourceGetPrimaryImageIndex读取有效主图，并遵循桌面缩放/裁剪/填充选项。最后才回退纯色，状态明确说明来源。
+
+DesktopWallpaperReader是隔离的兼容适配器：只枚举无需标题权限的on-screen窗口ID、层级和bounds，仅允许desktopWindow、desktopWindow-1、desktopWindow-2且覆盖目标屏幕95%以上的背景层窗口。优先Dock背景面，再是Wallpaper背景面；普通应用、桌面图标、小窗口、其他显示器不可传入图像API。不会使用全屏捕获或隐藏其他应用。
+
+macOS26及以下通过运行时符号解析调用已废止的CGWindowListCreateImage，只传入桌面背景windowID、includingWindow及目标显示器矩形。macOS27隔离使用CGSMainConnectionID/CGSHWCaptureWindowList兼容分支；符号缺失/返回值类型不符/黑图则回退文件。27以后未知系统仅文件回退，避免盲用未知私有ABI。此私有分支仅静态实现与本机编译检查，尚无macOS27真机验证，不应宣称公开稳定API或已通过商店审核。
+
+保留实际像素检查，黑色/透明动态图像不冒称成功；静态文件允许纯黑。Debug只记录来源、requiresScreenRecording=false和像素统计。应用不持久化背景图片；独立测试探针会在临时目录输出壁纸预览用于目视检查。
+
+验证：2026-11-12 macOS26.6.2上，全新Bundle ID测试App录屏预检false，desktop-window-coregraphics读到真实非黑背景，meanRGB约0.54898、meanAlpha=1。预览已目视确认粉色/紫蓝几何壁纸，无菜单栏、Dock、桌面图标或应用窗口。撤销LaunchDock原录屏授权后，主应用PID34924仍hasImage=true且同样像素统计，实际策略desktop-window-no-recording。最终构建检查无ScreenCaptureKit链接、无录屏预检/申请符号、无NSScreenCaptureUsageDescription。

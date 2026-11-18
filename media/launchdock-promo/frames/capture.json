@@ -1,0 +1,9 @@
+{
+  "height" : 800,
+  "demoAppCount" : 24,
+  "fps" : 15,
+  "realCatalogCount" : 86,
+  "note" : "Real native LauncherView, actual scanned apps and isolated demo layout; no user layout changes",
+  "frames" : 285,
+  "width" : 1280
+}

@@ -1,0 +1,23 @@
+{
+  "audioDecode" : "complete",
+  "audioPeak" : 0.20889495313167572,
+  "audioRMS" : 0.050873679850287075,
+  "checkedFrameSeconds" : [
+    1.6000000000000001,
+    5.5,
+    10.5,
+    12.5,
+    15.5,
+    16.5,
+    19.5,
+    25
+  ],
+  "decodedAudioSamples" : 2688000,
+  "decodedVideoFrames" : 840,
+  "durationSeconds" : 28,
+  "file" : "LaunchDock-Promo-1080p.mp4",
+  "fps" : 30.000001907348633,
+  "height" : 1080,
+  "videoDecode" : "complete",
+  "width" : 1920
+}

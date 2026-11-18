@@ -1,0 +1,39 @@
+# ADR 0002：启动器独立绘制壁纸
+
+状态：采用；真实动态壁纸捕获及多屏/Space对应待授权后验证。
+
+用户反馈透出桌面所需的应用hide/unhide会导致窗口闪烁、层级变化，并明确要求移除。删除DesktopVisibility及所有调用；关闭启动器也不再主动激活原前台应用。只管理LaunchDock自己的窗口和激活状态。
+
+WallpaperService在每次显示前为目标NSScreen生成一张图片。静态文件使用NSWorkspace壁纸URL、缩放/裁剪/填充选项绘制；动态HEIC、多图资源、无可读文件等场景，在已有屏幕录制授权时使用ScreenCaptureKit过滤壁纸层并单次截图。拒绝把接口返回的DefaultDesktop.heic直接当作当前壁纸，因本机该接口仅返回这个默认路径，无法确认其对应当前动态画面。
+
+背景使用不透明底色、自绘图片和24pt模糊，不再使用behindWindow材质透出真实应用。图片准备完成才显示窗口，显示期间不刷新。关闭或重新显示使旧任务取消，generation校验防过期图片/完成任务重新打开启动器。
+
+当前系统Wallpaper窗口层级为desktopWindow-2；筛选允许desktopWindow以及更低层级的Apple Wallpaper进程，排除Finder图标、Dock和普通应用。不使用私有Wallpaper数据库、不对全屏桌面作普通截图、不隐藏其他应用以生成截图。
+
+不自动申请录屏权限。用户可在“设置 → 外观 → 打开屏幕录制设置…”主动授权；拒绝或不可用时优先使用可信壁纸文件的静态画面，否则用纯色背景并在设置显示状态。授权后可能需要重启应用。此降级不宣称已匹配动态壁纸当前帧。
+
+验证包括静态文件真实像素、授权/截图失败降级、单次截图提供器、取消后不发布、等待图片时关闭不重开。真实AppKit helper开关采样验证其可见性和窗口相对顺序不变；该测试不等于真实动态壁纸截图已验证。
+
+## 授权后仍为纯色的修正（2026-11-12）
+
+SDK SCStream.h明确说明display + includingWindows过滤器排除桌面背景与Dock，因此不能用该构造器捕获壁纸。改为选出覆盖目标屏幕的壁纸窗口，使用desktopIndependentWindow过滤器，按window-local sourceRect裁剪到目标显示器。若系统不提供可捕获壁纸窗口则报告具体原因，不退回包含其他应用的整屏截图。
+
+壁纸状态现在保留权限检查结果、系统错误域/错误码或缺少壁纸窗口的具体原因；Debug进程仅写/tmp/launchdock-wallpaper-PID.json状态，不写截图或窗口标题。开发构建脚本对完整App本地ad-hoc签名，避免此前仅有链接器伪签名、Info.plist未绑定；这不承诺跨构建TCC授权持续有效。
+
+## 已授权机器的实际反馈与合成桌面捕获（2026-11-12）
+
+用户清理旧授权并重新允许后，真实PID81881明确permissionGranted=true，但SCShareableContent没有可独立捕获的壁纸窗口，hasImage=false。这证明独立窗口策略在该机器上不可用，不能把CGWindowList窗口层级元数据当成ScreenCaptureKit窗口可捕获性的证据。
+
+当前策略改用SCContentFilter(display:excludingApplications:exceptingWindows:)：排除content.applications中的全部应用，exception列表为空，保留SDK明示的系统合成桌面背景；includeMenuBar=false、showsCursor=false、capturesAudio=false、ignoreShadowsDisplay=true。显示器捕获包含Dock，所以在准备期间激活LaunchDock并应用自身hideDock/hideMenuBar展示选项，关闭/取消时恢复。不会对其他应用hide/unhide或改变其窗口顺序。截图不依赖任何Wallpaper窗口出现在SC列表。
+
+这次修改必须生成新代码哈希。最终开发包采用固定目录、本地ad-hoc签名和Launch Services注册；旧记录仅为LaunchDock定向清理，重新授权后须再核实实际permissionGranted和hasImage，不能因为此前版本已授权就认定新版本能捕获。源码/固定目录产物的最后回归完成后不再编译，避免再次变更权限身份。
+
+## 黑图反馈后的修正：保留壁纸提供进程（2026-11-12）
+
+用户实际截图显示背景纯黑。之前hasImage=true只证明ScreenCaptureKit返回CGImage，不能证明取得壁纸；不得作为内容验收成功。只读CG窗口元数据确认当前背景由Wallpaper进程PID504/com.apple.wallpaper.agent绘制，另有Dock/Window Server桌面底层。排除content.applications全部应用会连壁纸进程一并排除，得到合法但纯黑的截图。
+
+当前实现从CGWindowList提取目标显示器桌面层及以下窗口的ownerPID/windowID：保留这些背景提供进程，排除所有其他应用。对于被保留进程，其非桌面窗口作为exceptingWindows传入，使其设置面板和普通窗口也被排除。桌面层PID/窗口ID只用于运行时过滤，不记录普通窗口标题。
+
+增加32×32实际像素统计：alpha近零或RGB几乎纯黑的动态截图不报告成功，返回明确的黑色/透明画面失败状态及静态文件/纯色降级。纯黑动态壁纸也会触发保守降级，不能自动区分用户有意设置的纯黑与错误黑图；静态纯黑壁纸仍按文件读取，不经过此截图检查。Debug状态记录peakRGB、meanRGB、meanAlpha，实际验证必须结合这些数据和视觉结果。
+
+新增测试覆盖：返回opaque黑图必须失败；真实桌面层提供者被保留，普通应用/提供者设置窗口/其他屏幕背景不纳入；实际NSHostingView渲染彩色壁纸经过模糊/遮罩后仍显示颜色。不可只检查NSImage非nil。
