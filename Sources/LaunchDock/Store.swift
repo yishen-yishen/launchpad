@@ -65,10 +65,11 @@ import OSLog
     private var saveTask: Task<Void, Never>?
     private(set) var hasRestoredSnapshot = false
     var lastScan = Date.distantPast
-    private var dragging = false
+    @Published private(set) var draggedItem: Item?
+    private var dragging: Bool { draggedItem != nil }
     private var scanQueued = false
-    func beginDrag() { dragging = true }
-    func endDrag() { dragging = false; if scanQueued { scanQueued = false; Task { await scan() } } }
+    func beginDrag(_ item: Item) { draggedItem = item }
+    func endDrag() { draggedItem = nil; if scanQueued { scanQueued = false; Task { await scan() } } }
 
     var visible: [Item] {
         if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return index.search(query, order: engine.document.flattened.filter { !engine.document.hidden.contains($0) }).map(Item.app) }
@@ -101,6 +102,7 @@ import OSLog
             NSColor.white.withAlphaComponent(0.22).setFill()
             NSBezierPath(roundedRect: NSRect(x: 12, y: 12, width: 104, height: 104), xRadius: 22, yRadius: 22).fill()
             for (i, app) in folder.apps.filter({ !engine.document.hidden.contains($0) }).prefix(9).enumerated() {
+                if draggedItem == .app(app) { continue }
                 icon(.app(app)).draw(in: NSRect(x: 28+(i%3)*27, y: 82-(i/3)*27, width: 18, height: 18))
             }
             image.unlockFocus(); return image

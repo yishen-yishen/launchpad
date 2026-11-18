@@ -111,10 +111,29 @@ final class OverlayWindow: NSPanel, NSDraggingDestination {
               acceptsFolderExit(source: source, id: id, at: info.draggingLocation) else { return nil }
         return id
     }
-    func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation { folderExitID(sender) == nil ? [] : .move }
-    func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation { folderExitID(sender) == nil ? [] : .move }
-    func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool { folderExitID(sender) != nil }
+    private func rootDragItem(_ info: any NSDraggingInfo) -> Item? {
+        guard let store = launcherStore, store.folder == nil, store.query.isEmpty,
+              let source = info.draggingSource as? GridCollection, source.store === store, source.dragActive,
+              source.folderContextID != nil, let item = source.draggedItem,
+              info.draggingPasteboard.string(forType: .string) == item.id.uuidString,
+              store.engine.document.root.contains(item) else { return nil }
+        return item
+    }
+    func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation { draggingUpdated(sender) }
+    func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        if let item = rootDragItem(sender), let grid = contentView?.findGrid() {
+            grid.trackDestination(source: item, point: grid.convert(sender.draggingLocation, from: nil))
+            return .move
+        }
+        return folderExitID(sender) == nil ? [] : .move
+    }
+    func draggingExited(_ sender: (any NSDraggingInfo)?) { contentView?.findGrid()?.finishDestination() }
+    func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool { folderExitID(sender) != nil || rootDragItem(sender) != nil }
     func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        if let item = rootDragItem(sender), let grid = contentView?.findGrid() {
+            grid.trackDestination(source: item, point: grid.convert(sender.draggingLocation, from: nil))
+            return grid.commitDestination()
+        }
         guard let id = folderExitID(sender) else { return false }
         return launcherStore?.moveAppOutOfFolder(id) ?? false
     }

@@ -121,6 +121,9 @@ final class GridCollection: NSCollectionView {
     private var pager = PageScroll()
     private var pointerMonitor: Any?
     var dragActive = false
+    private(set) var draggedItem: Item?
+    private var folderExitTimer: Timer?
+    private var dragScreenPoint = NSPoint.zero
     var columns = 7
     var rowLimit = Int.max
     var rootProjection = false
@@ -201,8 +204,8 @@ final class GridCollection: NSCollectionView {
         }
     }
     private func receive(_ info: any NSDraggingInfo) -> NSDragOperation {
-        guard let store, store.query.isEmpty,
-              let sourceView = info.draggingSource as? GridCollection, sourceView === self,
+        guard let store, store.query.isEmpty, isActiveContext,
+              let sourceView = info.draggingSource as? GridCollection, sourceView.store === store, sourceView.dragActive,
               let text = info.draggingPasteboard.string(forType: .string), let id = UUID(uuidString: text),
               let source = store.engine.document.root.first(where: { $0.id == id }) ?? store.engine.document.flattened.first(where: { $0 == id }).map(Item.app) else { return [] }
         trackDestination(source: source, point: convert(info.draggingLocation, from: nil))
@@ -307,12 +310,12 @@ final class GridCollection: NSCollectionView {
                 guard hypot(point.x-start.x, point.y-start.y) > 6 else { return true }
                 self.cancelPointer()
                 guard self.store?.query.isEmpty == true, let cell = self.item(at: index) else { return true }
-                self.dragActive = true; self.store?.beginDrag()
                 let pasteboard = NSPasteboardItem(); pasteboard.setString(source.id.uuidString, forType: .string)
                 let dragged = NSDraggingItem(pasteboardWriter: pasteboard)
                 let image = NSImage(size: cell.view.bounds.size)
                 if let rep = cell.view.bitmapImageRepForCachingDisplay(in: cell.view.bounds) { cell.view.cacheDisplay(in: cell.view.bounds, to: rep); image.addRepresentation(rep) }
                 dragged.setDraggingFrame(cell.view.frame, contents: image)
+                self.beginItemDrag(source)
                 self.beginDraggingSession(with: [dragged], event: next, source: self)
                 return true
             }
@@ -321,7 +324,63 @@ final class GridCollection: NSCollectionView {
     }
     override func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation { context == .withinApplication ? .move : [] }
     override func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        endItemDrag()
+    }
+    func applyDragVisibility() {
+        for cell in visibleItems() {
+            guard let index = indexPath(for: cell), items.indices.contains(index.item) else { continue }
+            let hidden = items[index.item] == store?.draggedItem
+            cell.view.alphaValue = hidden ? 0 : 1
+            cell.view.setAccessibilityHidden(hidden)
+        }
+    }
+    private func refreshDragVisibility() {
+        func update(_ view: NSView) {
+            if let grid = view as? GridCollection { grid.applyDragVisibility() }
+            for child in view.subviews { update(child) }
+        }
+        if let content = window?.contentView { update(content) } else { applyDragVisibility() }
+    }
+    func beginItemDrag(_ item: Item) {
+        cancelFolderExit()
+        dragActive = true; draggedItem = item; store?.beginDrag(item)
+        refreshDragVisibility()
+    }
+    func endItemDrag() {
+        cancelFolderExit(); draggedItem = nil
+        window?.contentView?.findGrid()?.finishDestination()
         finishDestination(); dragActive = false; store?.endDrag()
+        refreshDragVisibility()
+    }
+    override func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
+        updateFolderExit(at: screenPoint)
+    }
+    private func cancelFolderExit() {
+        folderExitTimer?.invalidate(); folderExitTimer = nil
+    }
+    private func canExitFolder(at screenPoint: NSPoint) -> Bool {
+        guard dragActive, let folderContextID, store?.folder == folderContextID,
+              case .app(let id) = draggedItem, let window = window as? OverlayWindow, window.isVisible else { return false }
+        return window.acceptsFolderExit(source: self, id: id, at: window.convertPoint(fromScreen: screenPoint))
+    }
+    func updateFolderExit(at screenPoint: NSPoint) {
+        dragScreenPoint = screenPoint
+        guard canExitFolder(at: screenPoint) else { cancelFolderExit(); return }
+        guard folderExitTimer == nil else { return }
+        // Keep the native dragging session alive while switching back to the root.
+        // A run-loop timer also fires while the mouse stays still in drag tracking.
+        let timer = Timer(timeInterval: 0.3, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.folderExitTimer = nil
+                guard self.canExitFolder(at: self.dragScreenPoint), case .app(let id) = self.draggedItem else { return }
+                self.finishDestination()
+                _ = self.store?.moveAppOutOfFolder(id)
+            }
+        }
+        folderExitTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+        RunLoop.main.add(timer, forMode: .eventTracking)
     }
     func routeScroll(_ event: NSEvent) -> Bool {
         guard let store, store.query.isEmpty else { return false }
@@ -396,6 +455,7 @@ struct CollectionGrid: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let grid = scroll.documentView as? GridCollection else { return }
+        grid.applyDragVisibility()
         // SwiftUI keeps this view alive during its removal transition. Freeze the old
         // folder's data and geometry instead of projecting the now-active root into it.
         guard rootProjection || grid.isActiveContext else { return }
@@ -414,6 +474,7 @@ struct CollectionGrid: NSViewRepresentable {
             if let snapshot { pagingScroll?.animatePage(snapshot, grid: grid, forward: forward) }
         }
         grid.fitViewport(scroll.contentView.bounds.size)
+        grid.applyDragVisibility()
         guard grid.isActiveContext else { return }
         for cell in grid.visibleItems() {
             if let path = grid.indexPath(for: cell), grid.items.indices.contains(path.item) {
@@ -442,6 +503,8 @@ struct CollectionGrid: NSViewRepresentable {
             cell.textField?.textColor = .white
                 (cell as? AppCell)?.setIconSize(min(AppCell.preferredSize, ((grid.collectionViewLayout as? NSCollectionViewFlowLayout)?.itemSize.width ?? 160) - 20))
             let item = grid.items[indexPath.item]; cell.textField?.stringValue = store.name(item); cell.imageView?.image = store.icon(item)
+            cell.view.alphaValue = item == store.draggedItem ? 0 : 1
+            cell.view.setAccessibilityHidden(item == store.draggedItem)
             cell.view.setAccessibilityElement(true); cell.view.setAccessibilityRole(.button); cell.view.setAccessibilityLabel(store.name(item)); return cell
         }
         func collectionView(_ collectionView: NSCollectionView, pasteboardWriterForItemAt indexPath: IndexPath) -> (any NSPasteboardWriting)? {
