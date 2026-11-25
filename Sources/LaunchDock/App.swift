@@ -72,10 +72,7 @@ final class OverlayWindow: NSPanel, NSDraggingDestination {
            scroll.convert(scroll.bounds, to: nil).contains(point) {
             if store.folder != nil { return false }
             let local = grid.convert(point, from: nil)
-            if let path = grid.indexPathForItem(at: local), let cell = grid.item(at: path) {
-                if let image = cell.imageView, image.convert(image.bounds, to: grid).contains(local) { return false }
-                if let label = cell.textField, label.convert(label.bounds, to: grid).contains(local) { return false }
-            }
+            if grid.itemAtContentPoint(local) != nil { return false }
         }
         backgroundDrag = BackgroundDrag(x: point.x,y: point.y)
         return true

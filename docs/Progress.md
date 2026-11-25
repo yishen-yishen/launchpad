@@ -671,3 +671,15 @@ sh scripts/build-dev.sh 退出 0，固定目录构建与本地 ad-hoc 签名成�
 - 最终DMG只读挂载，包内App版本0.0.1-beta、双架构、签名/依赖、二进制哈希、Applications快捷方式及安装说明均通过；ZIP实际解压后校验也通过。DMG/ZIP的SHA256SUMS均OK。
 
 交付：dist/LaunchDock-0.0.1-beta-universal.dmg（c251f1fc784d02c604a8f01724b78cbc79b15bc0ba9e6595b2cc1b0b46c2611d）。显示版本保持0.0.1-beta，数字版本0.0.1，build保持2026111301。未进行Developer ID签名或公证；Intel为交叉构建验证，未在Intel真机运行；真实手动拖拽手感和多显示器仍需人工验收。运行日志位于/tmp/launchdock-full-*.log，镜像内App验证报告位于build/ReleaseValidation/20261118/Mounted-Verification.json。
+
+## 文件夹空白区域点击误选修复（2026-11-25）
+
+已实现：左键按下复用itemAtContentPoint的图标/实际名称范围判定，不再使用整个网格单元格作为点击及拖拽起点。文件夹内图标之间、单元格边距及名称两侧空白不会选中或打开应用；主页面窗口路由同步使用同一判定。正在拖动而隐藏的来源单元格不参与命中。
+
+实际验证：sh scripts/check-folder-drag.sh退出0，新增真实原生窗口鼠标事件检查，验证图标/名称正常点击，图标间隔、单元格边距、名称两侧空白不选择/不激活且不关闭文件夹；原有300ms拖出、取消、隐藏/恢复、主页面持续合并及两项文件夹解散检查仍全部通过。sh scripts/build-dev.sh退出0，编译与签名严格校验通过；已正常退出旧版并重启开发版。未跑完整回归、未打包DMG；真机人工连续点击/拖动手感待确认。用户既有DMG删除及其他未跟踪配置保持原样。
+
+## 点击区域修复打包与本地提交（2026-11-25）
+
+已完成sh scripts/package-release.sh，Release通用包显示版本仍为0.0.1-beta（数字版本0.0.1、build 2026111301）。DMG重新生成，镜像CRC验证有效；实际只读挂载后校验arm64/x86_64架构、ad-hoc签名严格验证、仅系统库依赖、版本、包内二进制哈希、Applications链接与安装说明均通过。DMG/ZIP的SHA256校验均OK，实际挂载报告位于build/ReleaseValidation/20261125/Mounted-Verification.json，打包日志位于/tmp/launchdock-click-fix-package.log。
+
+本轮未重新跑完整回归；使用本次修复已通过的原生点击/拖拽专项检查和Debug构建结果，并完成Release及最终镜像验证。未进行Developer ID签名、公证或Intel真机运行。本次点击区域修复、专项检查、进度记录及已跟踪的发行产物提交本地Git；未配置或推送远程仓库，用户的.gitignore及.vscode未跟踪配置保留。

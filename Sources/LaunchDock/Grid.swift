@@ -288,12 +288,12 @@ final class GridCollection: NSCollectionView {
     override func mouseDown(with event: NSEvent) {
         cancelPointer()
         let start = convert(event.locationInWindow, from: nil)
-        guard let index = indexPathForItem(at: start), items.indices.contains(index.item) else {
+        guard let source = itemAtContentPoint(start), let itemIndex = items.firstIndex(of: source) else {
             if store?.folder == nil { store?.hide?() }; return
         }
+        let index = IndexPath(item: itemIndex, section: 0)
         window?.makeFirstResponder(self)
         selectItems(at: [index], scrollPosition: [])
-        let source = items[index.item]
         store?.selected = source.id
         pointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDragged, .leftMouseUp, .keyDown]) { [weak self] next in
             let consumed = MainActor.assumeIsolated {
@@ -397,7 +397,7 @@ final class GridCollection: NSCollectionView {
         guard isActiveContext, let scroll = enclosingScrollView,
               scroll.contentView.bounds.contains(scroll.contentView.convert(point, from: self)),
               let index = indexPathForItem(at: point), items.indices.contains(index.item),
-              let cell = item(at: index) else { return nil }
+              let cell = item(at: index), cell.view.alphaValue > 0 else { return nil }
         if let image = cell.imageView, image.convert(image.bounds, to: self).contains(point) { return items[index.item] }
         if let label = cell.textField, !label.stringValue.isEmpty {
             let size = (label.stringValue as NSString).boundingRect(

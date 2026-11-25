@@ -34,6 +34,39 @@ import LaunchDockCore
         store.folder=folder
         try await pause(0.5);host.layoutSubtreeIfNeeded()
         guard let source=host.findGrid() else{throw Failure(message:"No folder grid")}
+        guard let first=source.item(at:IndexPath(item:0,section:0)),
+              let secondCell=source.item(at:IndexPath(item:1,section:0)),
+              let firstImage=first.imageView,let secondImage=secondCell.imageView,let label=first.textField else{throw Failure(message:"Missing hit-test cells")}
+        let firstRect=firstImage.convert(firstImage.bounds,to:source)
+        let secondRect=secondImage.convert(secondImage.bounds,to:source)
+        let cellRect=first.view.convert(first.view.bounds,to:source)
+        let gap=NSPoint(x:(firstRect.maxX+secondRect.minX)/2,y:firstRect.midY)
+        let padding=NSPoint(x:cellRect.minX+2,y:firstRect.midY)
+        let labelPadding=label.convert(NSPoint(x:1,y:label.bounds.midY),to:source)
+        let normalOpen=source.open
+        var activations=0
+        source.open={ _ in activations += 1 }
+        func click(_ point:NSPoint) async throws {
+            let location=source.convert(point,to:nil)
+            let down=NSEvent.mouseEvent(with:.leftMouseDown,location:location,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1)!
+            let up=NSEvent.mouseEvent(with:.leftMouseUp,location:location,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime+0.01,windowNumber:window.windowNumber,context:nil,eventNumber:2,clickCount:1,pressure:0)!
+            window.sendEvent(down);NSApp.postEvent(up,atStart:true)
+            try await pause(0.08)
+        }
+        for point in [gap,padding,labelPadding] {
+            store.selected=nil;source.deselectAll(nil)
+            try check(source.itemAtContentPoint(point)==nil,"Blank space identified as an item")
+            try await click(point)
+            try check(store.selected==nil && source.selectionIndexPaths.isEmpty && activations==0,"Blank click selected or activated an app")
+            try check(store.folder==folder,"Interior blank click closed folder")
+        }
+        try await click(NSPoint(x:firstRect.midX,y:firstRect.midY))
+        try check(activations==1,"Icon click stopped working")
+        let labelCenter=label.convert(NSPoint(x:label.bounds.midX,y:label.bounds.midY),to:source)
+        try await click(labelCenter)
+        try check(activations==2,"Name click stopped working")
+        source.open=normalOpen;source.cancelPointer()
+        print("PASS: folder icon/name click hits; inter-icon gap, cell padding and name padding ignore clicks")
         let outside=window.convertPoint(toScreen:NSPoint(x:5,y:5))
         let inside=window.convertPoint(toScreen:source.convert(NSPoint(x:source.bounds.midX,y:source.bounds.midY),to:nil))
         source.beginItemDrag(.app(ids[0]));source.updateFolderExit(at:outside)
