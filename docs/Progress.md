@@ -374,13 +374,13 @@
 - Info.plist用途说明改用明确的Config/LaunchDock-Info.plist模板。发现仅INFOPLIST_KEY自定义键未进入最终产物，已修复并用PlistBuddy实际读取验证。build-dev.sh签名前检查该键，使用固定中间目录及本机架构，消除切换构建输出路径时SwiftDriver“exit0但无输出”的增量诊断。
 - 在候选目录先完成完整原生回归，退出0、ALL NATIVE CHECKS PASSED，包括真实helper窗口层级/可见性连续采样、取消截图准备恢复及搜索/翻页/文件夹/菜单。之后固定开发包最终构建/本地签名/校验/注册成功，并检查二进制实际包含新的excludingApplications选择器和captureStrategy。
 - 代码变化产生新哈希，已按事先说明仅清理LaunchDock自己的旧ScreenCapture记录，未影响其他应用。最终用途模板构建在该次reset之后完成，但没有在中间构建期间启动或授权；不存在需保留的中间授权记录。
-- 更新README、ADR、Known-Limitations；最终包仍为/Users/yishen/project/launchpad/build/Development/LaunchDock.app。真实新策略截图待最终包重新授权后核实；不把候选/注入测试当作实际截图成功。
+- 更新README、ADR、Known-Limitations；最终包仍为<repository>/build/Development/LaunchDock.app。真实新策略截图待最终包重新授权后核实；不把候选/注入测试当作实际截图成功。
 
-最终固定目录产物的完整验证：`LAUNCHDOCK_CHECK_LIFECYCLE=1 sh scripts/check-native.sh /Users/yishen/project/launchpad/build/Development`退出0，ALL NATIVE CHECKS PASSED（包含真实helper窗口顺序持续采样）。已打开最终包PID90225，诊断captureStrategy=display-excluding-all-applications，授权前permissionGranted=false，符合旧记录已清理的预期。已请用户针对这份最终包允许并Quit & Reopen；此后不再改动包内容或签名。
+最终固定目录产物的完整验证：`LAUNCHDOCK_CHECK_LIFECYCLE=1 sh scripts/check-native.sh <repository>/build/Development`退出0，ALL NATIVE CHECKS PASSED（包含真实helper窗口顺序持续采样）。已打开最终包PID90225，诊断captureStrategy=display-excluding-all-applications，授权前permissionGranted=false，符合旧记录已清理的预期。已请用户针对这份最终包允许并Quit & Reopen；此后不再改动包内容或签名。
 
 ## 最终壁纸实际捕获成功（2026-11-12）
 
-用户为最终包允许并Quit & Reopen后，只读检查真实进程PID90823，路径/Users/yishen/project/launchpad/build/Development/LaunchDock.app。进程自身诊断明确报告：permissionGranted=true、hasImage=true、captureStrategy=display-excluding-all-applications、status=动态壁纸：本次打开时的截图，显示期间固定。至此该机器当前屏幕的系统截图调用与图片取得已实际成功，非注入测试结果。
+用户为最终包允许并Quit & Reopen后，只读检查真实进程PID90823，路径<repository>/build/Development/LaunchDock.app。进程自身诊断明确报告：permissionGranted=true、hasImage=true、captureStrategy=display-excluding-all-applications、status=动态壁纸：本次打开时的截图，显示期间固定。至此该机器当前屏幕的系统截图调用与图片取得已实际成功，非注入测试结果。
 
 本轮验证未重新编译、签名、复制应用包或更改系统权限。保留当前包身份。尚未目视验证截图中桌面图标/Dock完全排除、壁纸模糊色彩一致性、多显示器及不同Space；这些仍按Manual-QA验证，不由hasImage=true推断全部视觉验收通过。
 
@@ -418,7 +418,7 @@
 - 独立探针输出壁纸预览/tmp/launchdock-wallpaper-probe.WNtdh8/wallpaper-preview.png，已用view_image目视确认实际粉紫/蓝几何壁纸，无菜单栏、Dock、桌面图标或应用窗口。预览仅用于诊断，不是应用后台持久化策略。
 - 最终 `sh scripts/build-dev.sh`构建、本地ad-hoc签名和固定路径注册成功。包级检查确认无ScreenCaptureKit链接、无CGRequest/CGPreflight符号、无NSScreenCaptureUsageDescription。
 - 使用系统tccutil只撤销LaunchDock自己的旧ScreenCapture批准，系统确认成功；此后主应用PID34924重新启动仍hasImage=true、requiresScreenRecording=false、strategy=desktop-window-no-recording，像素meanRGB≈0.548981、meanAlpha=1。无需用户重新授权。
-- 最终固定目录产物完整回归 `LAUNCHDOCK_CHECK_LIFECYCLE=1 sh scripts/check-native.sh /Users/yishen/project/launchpad/build/Development`再次退出0、ALL NATIVE CHECKS PASSED。
+- 最终固定目录产物完整回归 `LAUNCHDOCK_CHECK_LIFECYCLE=1 sh scripts/check-native.sh <repository>/build/Development`再次退出0、ALL NATIVE CHECKS PASSED。
 
 未验证：
 
@@ -428,7 +428,7 @@
 ## 禁用文件夹及应用名称文字选择（2026-11-12）
 
 - 根页图标名称使用的wrappingLabelWithString默认可选择；AppCell现显式设置isSelectable=false、isEditable=false，名称只作为展示标签。应用与文件夹共用此标签，搜索框保持可编辑。
-- 实际验证：sh scripts/build-dev.sh退出0，构建、本地签名与注册成功；sh scripts/check-native.sh /Users/yishen/project/launchpad/build/Development退出0并输出ALL NATIVE CHECKS PASSED，名称区域菜单命中、长按、搜索编辑、文件夹开关/拖出、分页和背景回归通过。
+- 实际验证：sh scripts/build-dev.sh退出0，构建、本地签名与注册成功；sh scripts/check-native.sh <repository>/build/Development退出0并输出ALL NATIVE CHECKS PASSED，名称区域菜单命中、长按、搜索编辑、文件夹开关/拖出、分页和背景回归通过。
 - 上次记录/重启复合命令因自动审批额度限制未执行，此次继续补记。未新增仅复述属性赋值的测试；真实鼠标悬停的光标样式仍待目视确认。验证步骤：悬停/拖动名称不应选中文字或出现文字编辑光标，正常点击与长按图标仍应可用。
 
 ## 修复全屏 Space 唤起与原生测试崩溃（2026-11-12）
@@ -452,7 +452,7 @@
 
 未验证：Chrome/Safari 实际视频全屏、DRM、Stage Manager、多显示器 Space 仍需人工验收，步骤已补充 Manual-QA。原生全屏 helper 通过不等于这些场景均通过。
 
-补充最终验证：`LAUNCHDOCK_CHECK_LIFECYCLE=1 sh scripts/check-native.sh /Users/yishen/project/launchpad/build/Development` 在滚轮事件修正后退出 0、ALL NATIVE CHECKS PASSED；设置开关重开、真实辅助应用窗口可见性与层级持续采样均通过。上一轮滚轮检查失败已明确保留为测试时序问题，没有将失败记录算作通过。
+补充最终验证：`LAUNCHDOCK_CHECK_LIFECYCLE=1 sh scripts/check-native.sh <repository>/build/Development` 在滚轮事件修正后退出 0、ALL NATIVE CHECKS PASSED；设置开关重开、真实辅助应用窗口可见性与层级持续采样均通过。上一轮滚轮检查失败已明确保留为测试时序问题，没有将失败记录算作通过。
 
 ## 恢复可见的启动器与文件夹开关动画（2026-11-12）
 
@@ -683,3 +683,11 @@ sh scripts/build-dev.sh 退出 0，固定目录构建与本地 ad-hoc 签名成�
 已完成sh scripts/package-release.sh，Release通用包显示版本仍为0.0.1-beta（数字版本0.0.1、build 2026111301）。DMG重新生成，镜像CRC验证有效；实际只读挂载后校验arm64/x86_64架构、ad-hoc签名严格验证、仅系统库依赖、版本、包内二进制哈希、Applications链接与安装说明均通过。DMG/ZIP的SHA256校验均OK，实际挂载报告位于build/ReleaseValidation/20261125/Mounted-Verification.json，打包日志位于/tmp/launchdock-click-fix-package.log。
 
 本轮未重新跑完整回归；使用本次修复已通过的原生点击/拖拽专项检查和Debug构建结果，并完成Release及最终镜像验证。未进行Developer ID签名、公证或Intel真机运行。本次点击区域修复、专项检查、进度记录及已跟踪的发行产物提交本地Git；未配置或推送远程仓库，用户的.gitignore及.vscode未跟踪配置保留。
+
+## 面向用户的双语README与公开前清理（2026-11-26）
+
+已实现：README.md改为面向使用者的中文介绍，新增README.en.md英文版，包含安装、主要功能、常用操作、预览版签名状态、隐私及联系信息。开发命令移至docs/Development.md。更新.gitignore，排除生成物、Xcode索引、编辑器配置、常见密钥/环境文件、个人布局和应用采样、原始录制素材；既有相关文件仅移出Git索引，全部保留在本地。清理进度文档中的个人绝对路径，应用名称说明改为通用字段说明；公开作者邮箱保留。首次发布与历史风险说明见docs/Publishing.md。
+
+实际检查：扫描1619个历史文件对象，常见私钥/GitHub Token/OpenAI Key/AWS Access Key模式未匹配；127个历史对象含本机用户目录路径。另发现本地提交中的不同作者邮箱，本轮没有改写或隐藏历史。候选公开源码扫描无上述密钥或个人绝对路径，README/开发文档相对链接有效，git check-ignore验证隐私/生成物排除且源码、共享scheme及最终宣传片仍保留，Git差异空白检查通过。生成不含.git的build/PublicSource/LaunchDock-source.zip，供新仓库首次发布。
+
+范围：仅文档和版本控制卫生，不改产品功能，未编译/运行完整测试、未重打DMG、未新增提交、未推送远程。旧提交和origin/main跟踪记录仍存在，不能通过.gitignore清除；若使用现有仓库发布，需要另行处理历史。干净源码包适合新建空仓库。检查不保证识别所有格式的秘密；已公开副本不会因本地清理而消失。

@@ -1,0 +1,53 @@
+# Build output and package-manager state
+/.build/
+/.swiftpm/
+/build/
+/dist/
+DerivedData/
+ModuleCache.noindex/
+Index.noindex/
+**/-Xcc/
+*.xcactivitylog
+*.xcresult/
+*.dSYM/
+
+# Per-user macOS / Xcode / editor files
+.DS_Store
+.AppleDouble
+._*
+xcuserdata/
+*.xcuserstate
+/.vscode/
+/.idea/
+*.swp
+*.swo
+
+# Secrets and local configuration (examples may be shared)
+.env
+.env.*
+!.env.example
+!.env.sample
+*.p12
+*.pfx
+*.pem
+*.key
+*.mobileprovision
+*.provisionprofile
+AuthKey_*.p8
+/.aws/
+/.ssh/
+/.codex/
+/.agents/
+
+# Personal app catalogs, layouts and diagnostic output
+catalog.json
+layout.json
+layout.backup*.json
+layout.unreadable*
+*.log
+*.crash
+*.ips
+/docs/App-Name-Values.json
+
+# Generated promotional frames, audio and QA reports; keep the final promo video
+/media/launchdock-promo/

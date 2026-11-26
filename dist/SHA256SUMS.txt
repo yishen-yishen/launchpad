@@ -1,2 +1,0 @@
-c5bbd114ae43d27b1d63146d2bc2abec6e5e217b679eabe174550a390f549e41  LaunchDock-0.0.1-beta-universal.dmg
-e1e49e017284e104e1af5fa6baf92f6420b7542fbeabe25cbfcb53d1191f253a  LaunchDock-0.0.1-beta-universal.zip
